@@ -11,8 +11,8 @@
             <br><br>
             <table class="table">
                 <tr>
-                    <th><h5>Article: <strong>3</strong></h5></th>
-                    <th><h5>Total: <strong>$100</strong></h5></th>
+                    <th><h5>Article: <strong>{{commande.get_panier_article}}</strong></h5></th>
+                    <th><h5>Total: <strong>{{commande.get_panier_total|floatformat:2}}</strong></h5></th>
                     <th>
                         <a href="{% url 'shop:commande' %}" class="btn btn-outline-success">&#x2190; Vérifier</a>
                     </th>
@@ -27,21 +27,24 @@
                 <div style="flex:2"><strong>Article</strong></div>
                 <div style="flex:1"><strong>Prix</strong></div>
                 <div style="flex:1"><strong>Quantité</strong></div>
-                
+                <div style="flex:1"><strong>Total</strong></div>
             </div>
-            <div class="panier-row">
-                <div style="flex: 2"><img src="{% static 'images/' %}" alt="" class="row-image"></div>
-                <div style="flex: 2">Produit 1</div>
-                <div style="flex: 1">$100</div>
-                <div style="flex: 1">
-                    <p class="quantite">2</p>
-                    <div class="quantite">
-                        <img src="{% static 'images/triangle1.png' %}" alt="" class="chg-quantite">
-                        <img src="{% static 'images/black-triangle1.jpg' %}" alt="" class="chg-quantite">
+            {% for article in articles %}
+                <div class="panier-row">
+                    <div style="flex: 2"><img src="{{article.produit.imageUrl}}" alt="" class="row-image"></div>
+                    <div style="flex: 2">{{article.produit.name}}</div>
+                    <div style="flex: 1">{{article.produit.price}}</div>
+                    <div style="flex: 1">
+                        <p class="quantite">{{article.quantite}}</p>
+                        <div class="quantite">
+                            <img src="{% static 'images/triangle1.png' %}" alt="" class="chg-quantite">
+                            <img src="{% static 'images/black-triangle1.jpg' %}" alt="" class="chg-quantite">
+                        </div>
                     </div>
+                    <div style="flex: 1">{{article.get_total}}</div>
+                    
                 </div>
-            </div>
-
+            {% endfor %}
         </div>
     </div>
 </div>
