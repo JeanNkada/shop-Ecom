@@ -85,7 +85,12 @@ class Commande(models.Model):
         articlecommande = self.commandearticle_set.all()
         quantite_total = sum([article.quantite for article in articlecommande])
         return quantite_total
-            
+    @property
+    def produit_physique(self):
+        """savoir si noua avons au moins un produit physique"""
+        articlecommande = self.commandearticle_set.all()
+        physique = any(article.produit.digital == False for article in articlecommande)
+        return physique
     
 class CommandeArticle(models.Model):
     
@@ -112,6 +117,8 @@ class AddressChipping(models.Model):
     addresse = models.CharField(max_length=100, null=True)
     
     ville = models.CharField(max_length=100, null=True)
+    
+    pays = models.CharField(max_length=300)
     
     zipcode = models.CharField(max_length=100, null=True)
     

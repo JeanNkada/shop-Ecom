@@ -23,7 +23,7 @@ class AdminCommandeArticle(admin.ModelAdmin):
     
 
 class AdminAddressChipping(admin.ModelAdmin):
-    list_display = ('client', 'commande', 'addresse', 'ville', 'zipcode', 'date_ajout')
+    list_display = ('client', 'commande', 'addresse', 'ville', 'pays', 'zipcode', 'date_ajout')
     
 
 
