@@ -10,4 +10,5 @@ urlpatterns = [
     path('commande', views.commande, name='commande'),
     path('update_article/', views.update_article, name='update-article'),
     path('traitement_commande/', views.traitement_commande, name='traitement_commande'),
+    path('commandeAnonyme/', views.commandeAnonyme, name='commandeAnonyme')
 ]

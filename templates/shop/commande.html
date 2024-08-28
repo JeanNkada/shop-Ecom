@@ -11,6 +11,7 @@
     <div class="col-lg-6">
         <div class="box-element" id="form-wrapper">
             <form action="" id="form">
+                {% csrf_token %}
                 <div id="user-info">
                     <p>Informations Personnelles</p>
                     <div class="form-field">
@@ -49,8 +50,9 @@
         </div>
         <br>
         <div class="box-element hidden" id="payment-info">
-            <small>Option Paypal</small>
-            <button class="btn w-100 btn-success btn-block" id="make-payment">Effectuer le paiement</button>
+            <small>Veillez choisir le mode de payement</small>
+            <div id="paypal-button-container"></div>
+            <!--<button class="btn w-100 btn-success btn-block" id="make-payment">Effectuer le paiement</button>-->
         </div>
     </div>
     <div class="col-lg-6">
@@ -76,6 +78,47 @@
     </div>
 </div>
 
+<!--Inclure le SDK JavaScript de PayPal-->
+<script src="https://www.paypal.com/sdk/js?client-id=AcTelgAnRdhEUmhEw0YYqyvk3qlgDikjRhsgWjyCS5mcaypkcGZXW0mqTTmsFPyrslfVqnp9WgqotVFh&currency=USD"></script>
+
+<script>
+    //render the PayPal button into #paypal-button-container
+    var total = parseFloat('{{commande.get_panier_total}}').toFixed(2);
+    paypal.Buttons({
+
+        style: {
+                color:  'blue',
+                shape:  'rect',
+            },
+        //set up the transaction
+        createOrder: function(data, actions) {
+            return actions.order.create({
+                purchase_units: [{
+                    amount: {
+                        value: total
+                    }
+                }]
+            });
+        },
+        //finalize the transaction
+        onApprove: function(data, actions) {
+            return actions.order.capture().then(function(orderData) {
+                // Succeeeful capture for demo purposes
+
+                console.log('Capture result', orderData, JSON.stringify(orderData, null, 2));
+                var transaction = orderData.purchase_units[0].payments.captures[0];
+                submitFormData(transaction.id, transaction.status);
+            });    
+        }
+    }).render('#paypal-button-container');
+
+    function submitFormData(transactionId, status) {
+        // Fonction pour soumettre les données du formulaire ou traiter les informations
+        console.log('Transaction ID:', transactionId);
+        console.log('Transaction Status:', status);
+        // Ajoutez ici la logique pour envoyer les données au serveur ou mettre à jour l'interface utilisateur
+    }
+</script>
 
 <script type="text/javascript">
 
@@ -110,12 +153,18 @@
         document.getElementById('payment-info').classList.remove('hidden');
     })
 
-    document.getElementById('make-payment').addEventListener('click', function(e){
-        submitFormData(); //fonction qui permet d'envoyer les données
-    })
+    //document.getElementById('make-payment').addEventListener('click', function(e){
+    //    submitFormData(); //fonction qui permet d'envoyer les données
+   // })
     
     //code pour envoyer les données vers la page de paiement
-    function submitFormData(){
+    function submitFormData(transaction_id, status){
+
+        paymentInfo = {
+            'transaction_id': transaction_id,
+            'status': status,
+            'total': total,
+        }
         
         var userFormData = {
             'name':null,
@@ -137,7 +186,7 @@
             shippingUserInfo.zipcode = form.zipcode.value;
             
         }
-        if (user == "anonymousUser"){
+        if (user == "AnonymousUser"){
             userFormData.name = form.name.value;
             userFormData.username = form.username.value;
             userFormData.phone = form.phone.value;
@@ -152,7 +201,7 @@
                     "Content-Type": "application/json",
                     "X-CSRFToken": csrftoken
                 },
-                body: JSON.stringify({"form": userFormData, "shipping": shippingUserInfo})
+                body: JSON.stringify({"form": userFormData, "shipping": shippingUserInfo, 'payment_info': paymentInfo })
             })
             .then((response) => {
                 return response.json();
@@ -160,6 +209,8 @@
             .then((data) => {
                 console.log('data', data);
                 alert('traitement commande terminé');
+                panier = {};
+                document.cookie = "panier=" + JSON.stringify(panier) + ";domain=;path=/";
                 window.location.href = "{% url 'shop:shop' %}";
             })
     }

@@ -9,6 +9,8 @@ from django.contrib.auth.decorators import login_required
 
 from datetime import datetime
 
+from .utiles import panier_cookie, data_cookie
+
 # Create your views here.
 
 
@@ -19,26 +21,11 @@ def home(request, *args, **kwargs):
 
 
 def shop(request, *args, **kwargs):
-    produits = Produit.objects.all()
     
-    if request.user.is_authenticated:
-        
-        client = request.user.client
-        
-        commande, created = Commande.objects.get_or_create(client=client, complete=False)
-        
-        nombre_article = commande.get_panier_article
-        
-    else:
-        
-        articles = []
-        
-        commande = {
-            'get_panier_total':0,
-            'get_panier_article':0
-        }
-        nombre_article = commande['get_panier_article']
-        
+    produits = Produit.objects.all()
+    data = data_cookie(request)
+    nombre_article = data['nombre_article']
+    
     context = {
         'produits' : produits,
         'nombre_article':nombre_article
@@ -51,25 +38,11 @@ def shop(request, *args, **kwargs):
 #afficher les articles de l'utlisateur connecté
 def panier(request, *args, **kwargs):
     
-    if request.user.is_authenticated:
+    data = data_cookie(request)  
+    articles = data['articles']
+    commande = data['commande']
+    nombre_article = data['nombre_article']
         
-        client = request.user.client
-        
-        #récupération de la commande en cours ou création d'une nouvelle commande si elle n'existe pas déjà
-        commande, created = Commande.objects.get_or_create(client=client, complete=False)
-        
-        #liste des article liés a cette commande
-        articles = commande.commandearticle_set.all()
-        
-        nombre_article = commande.get_panier_article
-    else:
-        articles = []
-        
-        commande = {
-        'get_panier_total':0,
-        'get_panier_article':0
-        }
-        nombre_article = commande['get_panier_article']
     context = {
     'articles':articles,
     'commande':commande,
@@ -82,25 +55,10 @@ def panier(request, *args, **kwargs):
 
 def commande(request, *args, **kwargs):
     """ Commande """
-    if request.user.is_authenticated:
-        
-        client = request.user.client
-        
-        commande, created = Commande.objects.get_or_create(client=client, complete=False)
-        
-        articles = commande.commandearticle_set.all()
-        
-        nombre_article = commande.get_panier_article
-        
-    else:
-        
-        articles = []
-        
-        commande = {
-            'get_panier_total':0,
-            'get_panier_article':0
-        }
-        nombre_article = commande['get_panier_article']
+    data = data_cookie(request)  
+    articles = data['articles']
+    commande = data['commande']
+    nombre_article = data['nombre_article']
         
     context = {
         'articles':articles,
@@ -147,8 +105,37 @@ def update_article(request, *args, **kwargs):
     return JsonResponse("Panier modifier", safe=False)
 
 
+def commandeAnonyme(request, data):
+    
+    name = data['form']['name']
+    username = data['form']['username']
+    email = data['form']['email']
+    phone = data['form']['phone']
+    
+    cookie_panier = panier_cookie(request)
+    articles = cookie_panier['articles']
+    client, created = Client.objects.get_or_create(
+        email = email
+    )
+    
+    client.name = name
+    client.save()
+    
+    commande = Commande.objects.create(
+        client=client
+    ) 
+    for article in articles:
+        produit = Produit.objects.get(id=article['produit']['id'])
+        CommandeArticle.objects.create(
+            produit=produit,
+            commande = commande,
+            quantite = article['quantite']
+        )
+    return client, commande
+
+from decimal import Decimal
 def traitement_commande(request, *args, **kwargs):
-    """ traitement, validation de la com;ande et verification de l'integrite des donnees(detection de fraude)"""
+    """ traitement, validation de la commande et verification de l'integrite des donnees(detection de fraude)"""
     data = json.loads(request.body)
     transaction_id = datetime.now().timestamp()
     
@@ -158,30 +145,40 @@ def traitement_commande(request, *args, **kwargs):
         
         commande, created = Commande.objects.get_or_create(client=client, complete=False)
         
-        total = float(data['form']['total'])
+    else:
+        client, commande = commandeAnonyme(request, data)
+        
+    total = float(data['form']['total'])
+    print(data)
         
         # verification si le total au frontend est égale au total au backend
         
-        commande.transaction_id = transaction_id
+    commande.transaction_id = data['payment_info']['transaction_id']
+    
+    commande.total_trans = Decimal(data['payment_info'] ['total'])   
+    
+    if commande.get_panier_total == Decimal(total):
         
-        if commande.get_panier_total == total:
-            
-            commande.complete = True
-            
-        commande.save()
-            
-        if commande.produit_physique:
-            
-            AddressChipping.objects.create(
-                client=client,
-                commande=commande,
-                addresse=data['shipping']['address'],
-                ville=data['shipping']['city'],
-                zipcode=data['shipping']['zipcode'],
-            )
-        
+        commande.complete = True
+        commande.status = data['payment_info']['status']
+    
     else:
-        print("utilisateur non authentifie")
+        commande.status = 'REFUSE'
+        
+        return JsonResponse('Attention Traitement refusé Fraude detecté', safe=False)
+    
+    commande.save()    
+    
 
-
+        
+    if commande.produit_physique:
+        
+        AddressChipping.objects.create(
+            client=client,
+            commande=commande,
+            addresse=data['shipping']['address'],
+            ville=data['shipping']['city'],
+            zipcode=data['shipping']['zipcode'],
+        )
+        
     return JsonResponse('Traitement complet', safe=False)

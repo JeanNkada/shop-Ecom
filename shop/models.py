@@ -14,7 +14,7 @@ class Client(models.Model):
     email = models.EmailField(max_length=200, null=True)
     
     def __str__(self):
-        return self.name
+        return str(self.name)
     
     
 class Category(models.Model):
@@ -73,7 +73,7 @@ class Commande(models.Model):
     total_trans = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
     def __str__(self):
-        return str(self.id)
+        return str(self.date_commande)
     
     @property
     def get_panier_total(self):
@@ -87,7 +87,7 @@ class Commande(models.Model):
         return quantite_total
     @property
     def produit_physique(self):
-        """savoir si noua avons au moins un produit physique"""
+        """savoir si nous avons au moins un produit physique"""
         articlecommande = self.commandearticle_set.all()
         physique = any(article.produit.digital == False for article in articlecommande)
         return physique
